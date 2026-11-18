@@ -1,0 +1,25 @@
+prompt encoded in 1.19 s (umT5 evicted)
+loaded weights (bfloat16) in 0.11 s
+frame  0: denoise 0.677 s, context 0.123 s
+frame  1: denoise 0.268 s, context 0.070 s
+frame  2: denoise 0.289 s, context 0.040 s
+frame  3: denoise 0.313 s, context 0.038 s
+frame  4: denoise 0.327 s, context 0.038 s
+frame  5: denoise 0.346 s, context 0.040 s
+frame  6: denoise 0.363 s, context 0.038 s
+frame  7: denoise 0.395 s, context 0.038 s
+frame  8: denoise 0.402 s, context 0.038 s
+frame  9: denoise 0.419 s, context 0.040 s
+frame 10: denoise 0.440 s, context 0.038 s
+frame 11: denoise 0.474 s, context 0.040 s
+frame 12: denoise 0.476 s, context 0.040 s
+frame 13: denoise 0.502 s, context 0.038 s
+frame 14: denoise 0.516 s, context 0.038 s
+frame 15: denoise 0.549 s, context 0.040 s
+frame 16: denoise 0.558 s, context 0.038 s
+frame 17: denoise 0.577 s, context 0.038 s
+frame 18: denoise 0.595 s, context 0.040 s
+frame 19: denoise 0.630 s, context 0.038 s
+frame 20: denoise 0.638 s, context 0.038 s
+rollout 10.80 s, decode 0.33 s, MLX peak 12.14 GB, footprint peak 35.17 GB
+wrote /Volumes/DEV_ARCHIVE/fastframes-s-measure/out/swift-generate/generate.mp4

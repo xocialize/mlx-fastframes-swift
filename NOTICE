@@ -1,0 +1,14 @@
+mlx-fastframes-swift
+
+Port of FastFrames (https://github.com/apple-aiml-research/ml-fastframes @ a65c592):
+  Copyright (C) 2026 Apple Inc. All Rights Reserved. The inference code translated here (the frame-causal Wan DiT
+  forward, KV refinement network, pixel decoder and rollout of fastframes/pipeline.py, stock path) is Apple software
+  under the Apple Sample Code License included in that repository. This is a modified translation to Swift/MLX.
+
+FastFrames-S's generator is the Causal Forcing++ framewise-2step checkpoint (https://github.com/thu-ml/Causal-Forcing,
+https://huggingface.co/zhuhz22/Causal-Forcing), Apache-2.0, on the Wan2.1 architecture
+(https://github.com/Wan-Video/Wan2.1), Apache-2.0. Prompt encoding uses wan-core-mlx-swift's umT5 encoder.
+
+The KV refiner and pixel decoder weights (https://huggingface.co/apple/FastFrames-S) are not included in this
+repository. Apple Machine Learning Research Model is licensed under the Apple Machine Learning Research Model License
+Agreement: research use only, non-commercial. Any derivative of those weights must be identified as such.

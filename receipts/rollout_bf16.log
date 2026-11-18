@@ -1,0 +1,100 @@
+loaded weights (bfloat16) in 0.12 s
+frame  0: denoise 0.519 s, context 0.124 s
+frame  1: denoise 0.272 s, context 0.073 s
+frame  2: denoise 0.292 s, context 0.040 s
+frame  3: denoise 0.315 s, context 0.039 s
+frame  4: denoise 0.328 s, context 0.038 s
+frame  5: denoise 0.349 s, context 0.038 s
+frame  6: denoise 0.369 s, context 0.039 s
+frame  7: denoise 0.393 s, context 0.038 s
+frame  8: denoise 0.405 s, context 0.038 s
+frame  9: denoise 0.420 s, context 0.038 s
+frame 10: denoise 0.440 s, context 0.038 s
+frame 11: denoise 0.471 s, context 0.038 s
+frame 12: denoise 0.479 s, context 0.040 s
+frame 13: denoise 0.498 s, context 0.038 s
+frame 14: denoise 0.517 s, context 0.040 s
+frame 15: denoise 0.552 s, context 0.038 s
+frame 16: denoise 0.556 s, context 0.038 s
+frame 17: denoise 0.581 s, context 0.040 s
+frame 18: denoise 0.596 s, context 0.040 s
+frame 19: denoise 0.633 s, context 0.039 s
+frame 20: denoise 0.646 s, context 0.039 s
+run 0: rollout 10.68 s, decode 0.34 s, MLX peak 12.16 GB, footprint peak 18.69 GB
+frame  0: denoise 0.512 s, context 0.125 s
+frame  1: denoise 0.273 s, context 0.045 s
+frame  2: denoise 0.291 s, context 0.038 s
+frame  3: denoise 0.315 s, context 0.038 s
+frame  4: denoise 0.329 s, context 0.038 s
+frame  5: denoise 0.348 s, context 0.040 s
+frame  6: denoise 0.367 s, context 0.038 s
+frame  7: denoise 0.395 s, context 0.040 s
+frame  8: denoise 0.408 s, context 0.043 s
+frame  9: denoise 0.429 s, context 0.039 s
+frame 10: denoise 0.444 s, context 0.038 s
+frame 11: denoise 0.482 s, context 0.038 s
+frame 12: denoise 0.488 s, context 0.040 s
+frame 13: denoise 0.505 s, context 0.039 s
+frame 14: denoise 0.530 s, context 0.039 s
+frame 15: denoise 0.557 s, context 0.039 s
+frame 16: denoise 0.569 s, context 0.041 s
+frame 17: denoise 0.582 s, context 0.039 s
+frame 18: denoise 0.605 s, context 0.041 s
+frame 19: denoise 0.630 s, context 0.038 s
+frame 20: denoise 0.641 s, context 0.039 s
+run 1: rollout 10.64 s, decode 0.30 s, MLX peak 12.34 GB, footprint peak 18.80 GB
+frame  0: denoise 0.508 s, context 0.124 s
+frame  1: denoise 0.281 s, context 0.042 s
+frame  2: denoise 0.290 s, context 0.038 s
+frame  3: denoise 0.313 s, context 0.038 s
+frame  4: denoise 0.326 s, context 0.039 s
+frame  5: denoise 0.346 s, context 0.040 s
+frame  6: denoise 0.365 s, context 0.040 s
+frame  7: denoise 0.393 s, context 0.038 s
+frame  8: denoise 0.401 s, context 0.038 s
+frame  9: denoise 0.422 s, context 0.038 s
+frame 10: denoise 0.441 s, context 0.041 s
+frame 11: denoise 0.477 s, context 0.039 s
+frame 12: denoise 0.481 s, context 0.040 s
+frame 13: denoise 0.501 s, context 0.038 s
+frame 14: denoise 0.525 s, context 0.040 s
+frame 15: denoise 0.558 s, context 0.040 s
+frame 16: denoise 0.565 s, context 0.041 s
+frame 17: denoise 0.579 s, context 0.040 s
+frame 18: denoise 0.602 s, context 0.039 s
+frame 19: denoise 0.629 s, context 0.039 s
+frame 20: denoise 0.641 s, context 0.038 s
+run 2: rollout 10.57 s, decode 0.31 s, MLX peak 12.36 GB, footprint peak 18.80 GB
+— vs Python-MLX V0 (bf16, same noise; gate on frames 0..<3) —
+  latent frame  0  rel 0.0311  cos 0.999518
+  latent frame  1  rel 0.0432  cos 0.999068
+  latent frame  2  rel 0.0493  cos 0.998785
+  latent frame  3  rel 0.1103  cos 0.993905  (ungated)
+  latent frame  4  rel 0.1585  cos 0.987448  (ungated)
+  latent frame  5  rel 0.2211  cos 0.975569  (ungated)
+  latent frame  6  rel 0.2751  cos 0.962144  (ungated)
+  latent frame  7  rel 0.3009  cos 0.954653  (ungated)
+  latent frame  8  rel 0.2976  cos 0.955769  (ungated)
+  latent frame  9  rel 0.3015  cos 0.954430  (ungated)
+  latent frame 10  rel 0.3021  cos 0.954291  (ungated)
+  latent frame 11  rel 0.3217  cos 0.948466  (ungated)
+  latent frame 12  rel 0.3260  cos 0.946835  (ungated)
+  latent frame 13  rel 0.3300  cos 0.945212  (ungated)
+  latent frame 14  rel 0.3252  cos 0.946891  (ungated)
+  latent frame 15  rel 0.3745  cos 0.929550  (ungated)
+  latent frame 16  rel 0.4249  cos 0.909772  (ungated)
+  latent frame 17  rel 0.4655  cos 0.892783  (ungated)
+  latent frame 18  rel 0.4809  cos 0.886877  (ungated)
+  latent frame 19  rel 0.4264  cos 0.909528  (ungated)
+  latent frame 20  rel 0.4046  cos 0.916996  (ungated)
+  pixels (81 frames)  PSNR min 17.29 dB  mean 22.56 dB
+PASS  rollout vs Python-MLX (bf16 band)  min cos 0.998785 over frames 0..<3
+— vs upstream torch CPU bf16 (first 3 frames) —
+  latent frame  0  rel 0.0448  cos 0.998997
+  latent frame  1  rel 0.0629  cos 0.998019
+  latent frame  2  rel 0.0744  cos 0.997227
+  pixels (9 frames)  PSNR min 31.73 dB  mean 33.81 dB
+PASS  rollout vs upstream  min cos 0.99723
+wrote /Volumes/DEV_ARCHIVE/fastframes-s-measure/out/swift-bf16/{rollout.mp4,timing_swift.json,swift_rollout.safetensors}
+       34.23 real         2.88 user         2.66 sys
+         19036427184  peak memory footprint

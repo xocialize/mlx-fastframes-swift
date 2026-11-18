@@ -1,0 +1,2 @@
+umT5 load + encode 47.82 s, MLX peak 23.73 GB
+PASS  umT5 vs upstream CPU bf16  tokens 11/11  rel 0.0176  cos 0.999844
