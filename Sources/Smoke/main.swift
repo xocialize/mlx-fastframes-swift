@@ -9,7 +9,7 @@
 //   generate  prompt → umT5 (evicted) → rollout → decode → MP4, with seeded MLX noise.
 //   engine    FastFramesPackage through the REAL MLXServeEngine (register → run; the engine constructs and loads the
 //             package, C13): --addons <dir> --wan-dir <t5 dir> --tokenizer <dir> --dit <file> --prompt … [--frames N]
-//             [--seed S] [--warmup] [--out dir]. Reports the phys floor after load and the lifetime peak during the
+//             [--seed S] [--warmup] [--out dir] [--store dir: fetch the DiT from the Hub into a fresh model store]. Reports the phys floor after load and the lifetime peak during the
 //             run — the basis of the manifest's split footprint. One measured run per process.
 //
 // Weights: --dit (Causal Forcing++ framewise-2step generator_ema as safetensors), --refiner, --decoder.
@@ -209,10 +209,18 @@ case "generate":
     print("wrote \(dir.path)/generate.mp4")
 
 case "engine":
+    // --store <dir>: no explicit DiT — the engine materializes it from the Hub into that model store before load
+    // (anonymous Hub access: an unsigned CLI touching a Keychain item blocks on an OS prompt).
+    let store = args.str("store").map { URL(fileURLWithPath: $0) }
     let cfg = FastFramesConfiguration(
-        ditFile: args.url("dit"), addonsDirectory: args.url("addons"),
+        ditFile: store == nil ? args.url("dit") : nil, addonsDirectory: args.url("addons"),
         textEncoderDirectory: args.url("wan-dir"), tokenizerDirectory: args.url("tokenizer"))
-    let engine = MLXServeEngine()
+    let engine = store == nil ? MLXServeEngine() : MLXServeEngine(hfTokenProvider: { nil })
+    if let store {
+        try FileManager.default.createDirectory(at: store, withIntermediateDirectories: true)
+        await engine.useModelStore(ModelStore(root: store))
+        print("model store \(store.path): missing before run = \(cfg.missingWeightSources(storeRoot: store).map(\.repo))")
+    }
     var t = now()
     let id = try await engine.register(FastFramesPackage.registration, configuration: cfg)
     print(String(format: "registered in %.3f s; licence advisories: %@", now() - t,

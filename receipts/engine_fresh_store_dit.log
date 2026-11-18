@@ -1,0 +1,6 @@
+model store /Volumes/DEV_ARCHIVE/fastframes-s-measure/fresh-store: missing before run = ["mlx-community/Causal-Forcing-PP-framewise-2step-bf16"]
+[License] apple/FastFrames-S: weight license LicenseRef-Apple-AMLR is outside permissiveOnly — declared and allowed to load (advisory enforcement).
+registered in 0.000 s; licence advisories: ["apple/FastFrames-S: weight license LicenseRef-Apple-AMLR is outside permissiveOnly — declared and allowed to load (advisory enforcement)."]
+[Prewarm] fastframes-s-t2v: paged 4 file(s) / 15.1 GB into cache in 1.3s
+engine: 81 frames in 80.33 s (load included); phys floor 0.01 GB, lifetime peak 16.06 GB (activation ≈ 16.05 GB); MLX peak 15.73 GB; 5035980 bytes mp4, 5.06 s at 16 fps
+wrote /Volumes/DEV_ARCHIVE/fastframes-s-measure/out/swift-engine-store/engine.mp4

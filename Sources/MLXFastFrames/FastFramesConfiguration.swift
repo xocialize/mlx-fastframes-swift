@@ -14,10 +14,10 @@ import MLXToolKit
 /// | `text-encoder` | `mlx-community/Bernini-R-1.3B-bf16` | `t5_encoder.safetensors`, `config.json` | Apache-2.0 |
 /// | `tokenizer` | `google/umt5-xxl` | tokenizer files | Apache-2.0 |
 ///
-/// The `dit` repo is the Causal Forcing++ `framewise-2step.pt` `generator_ema` converted to bf16 safetensors with
-/// upstream key names (`zhuhz22/Causal-Forcing` ships only the pickle). **It is not published yet**; until it is, set
-/// `ditFile` (or a store that already holds it). The umT5 encoder is the Wan2.1/2.2 umt5-xxl as the Wan family already
-/// ships it (byte-identical to the file the V2 gate ran against).
+/// The `dit` repo (published 2026-11-18) is the Causal Forcing++ `framewise-2step.pt` `generator_ema` converted to bf16
+/// safetensors with upstream key names by `Tools/convert_dit.py` (`zhuhz22/Causal-Forcing` ships only the pickle);
+/// tensor-identical to the file the V2 gates ran against. The umT5 encoder is the Wan2.1/2.2 umt5-xxl as the Wan family
+/// already ships it (byte-identical to the file the V2 gate ran against).
 ///
 /// Every explicit path wins over the store and never touches the network.
 public struct FastFramesConfiguration: PackageConfiguration, ModelStorable {

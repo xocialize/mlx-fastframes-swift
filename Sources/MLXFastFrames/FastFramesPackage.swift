@@ -23,9 +23,10 @@ public enum FastFramesPackageError: Error, CustomStringConvertible {
     public var description: String {
         switch self {
         case .weightsNotProvisioned(let m):
-            return "FastFrames-S weights not found (\(m)). The engine downloads the add-ons from apple/FastFrames-S and "
-                + "the text encoder on first use; the converted DiT (\(FastFramesConfiguration.ditRepo)) is not "
-                + "published yet — set FastFramesConfiguration.ditFile to a local dit.safetensors."
+            return "FastFrames-S weights not found (\(m)). Through MLXEngine the four sources (the converted DiT "
+                + "\(FastFramesConfiguration.ditRepo), apple/FastFrames-S, the umT5 encoder and its tokenizer) are "
+                + "downloaded on first use; without an engine-managed store, set the explicit paths on "
+                + "FastFramesConfiguration."
         }
     }
 }

@@ -5,8 +5,9 @@ text-to-video model: a frame-causal Wan2.1-1.3B DiT, a KV refinement network, an
 writes RGB directly. Output is 81 frames at 832×480 and 16 fps.
 
 **Status: V3 (MLXEngine `textToVideo` package), 2026-11-18.** The core passed V2's parity gates; the package passes
-the offline conformance gates and runs through the real `MLXServeEngine`. **Not published.** The converted DiT has no
-Hub repo yet, so a fresh machine can't materialize it (see Open decisions). The porting evaluation and the V0
+the offline conformance gates and runs through the real `MLXServeEngine`. The converted DiT is published as
+[`mlx-community/Causal-Forcing-PP-framewise-2step-bf16`](https://huggingface.co/mlx-community/Causal-Forcing-PP-framewise-2step-bf16),
+so every weight source materializes on a fresh machine. This repo itself is not pushed yet. The porting evaluation and the V0
 Python-MLX spike are in `mlxengine-video/WIP/fastframes-eval/`.
 
 ## Licence channel — read first
@@ -106,7 +107,7 @@ Logs and sheets are in `receipts/`.
 
 | Role | Repo | Status |
 |---|---|---|
-| dit | `mlx-community/Causal-Forcing-PP-framewise-2step-bf16` | **unpublished**; set `ditFile` until it exists |
+| dit | `mlx-community/Causal-Forcing-PP-framewise-2step-bf16` (`dit.safetensors`, `Tools/convert_dit.py`) | live since 2026-11-18 |
 | addons | `apple/FastFrames-S` (`fastframes-s/*.safetensors`) | live |
 | text-encoder | `mlx-community/Bernini-R-1.3B-bf16` (`t5_encoder.safetensors`, `config.json`) | live |
 | tokenizer | `google/umt5-xxl` | live |
@@ -129,11 +130,15 @@ Logs and sheets are in `receipts/`.
 Offline gates (`swift test`, 17 tests): MAT, the licence posture, FIT, CAN-1 and CAN-3, request planning, the load
 refusal, and the Codable form without host paths.
 
+**Published DiT, verified from a fresh store** (`receipts/engine_fresh_store_dit.log`)
+- The engine found the DiT missing, downloaded it from the Hub into an empty model store, and ran.
+- The downloaded `dit.safetensors` SHA-256 is `ab6b1d50…4c197`, the same as the local conversion.
+- `convert_dit.py`'s output is tensor-identical to the gated file.
+- The clip's 81 decoded frames are identical to the local-DiT run.
+- Total time 80.3 s, including the 2.8 GB download, load and run.
+
 ## Open decisions (operator)
 
-- **Publish the converted DiT** as `mlx-community/Causal-Forcing-PP-framewise-2step-bf16`.
-  - It is Apache-2.0 and not an AMLR file, so AB-D-0259's no-mirror rule doesn't cover it.
-  - Without it the package needs a local `ditFile`.
 - **Push this repo** (private) to GitHub.
 
 ## Not yet done
