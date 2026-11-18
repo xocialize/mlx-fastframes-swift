@@ -7,7 +7,7 @@ writes RGB directly. Output is 81 frames at 832×480 and 16 fps.
 **Status: V3 (MLXEngine `textToVideo` package), 2026-11-18.** The core passed V2's parity gates; the package passes
 the offline conformance gates and runs through the real `MLXServeEngine`. The converted DiT is published as
 [`mlx-community/Causal-Forcing-PP-framewise-2step-bf16`](https://huggingface.co/mlx-community/Causal-Forcing-PP-framewise-2step-bf16),
-so every weight source materializes on a fresh machine. This repo itself is not pushed yet. The porting evaluation and the V0
+so every weight source materializes on a fresh machine. The porting evaluation and the V0
 Python-MLX spike are in `mlxengine-video/WIP/fastframes-eval/`.
 
 ## Licence channel — read first
@@ -16,7 +16,7 @@ Python-MLX spike are in `mlxengine-video/WIP/fastframes-eval/`.
 |---|---|---|
 | DiT weights (Causal Forcing++ `framewise-2step.pt`, `zhuhz22/Causal-Forcing`) | Apache-2.0 | anywhere |
 | KV refiner + pixel decoder weights (`apple/FastFrames-S`) | **Apple Machine Learning Research Model License** — research only, non-commercial, revocable | **Gaea plugins only, opt-in and named-only** (AB-D-0259 under AB-D-0226 channel 2). Never a shipping app. No weight mirror without a separate operator decision. |
-| This code | a translation of Apple's sample code (Apple Sample Code License) — see `NOTICE` | — |
+| This code | a modified translation of Apple's sample code, under the Apple Sample Code License (`LICENSE`); see `NOTICE` | — |
 
 Apple Machine Learning Research Model is licensed under the Apple Machine Learning Research Model License Agreement.
 
@@ -137,9 +137,16 @@ refusal, and the Codable form without host paths.
 - The clip's 81 decoded frames are identical to the local-DiT run.
 - Total time 80.3 s, including the 2.8 GB download, load and run.
 
-## Open decisions (operator)
+## Use
 
-- **Push this repo** (private) to GitHub.
+```swift
+// .package(url: "https://github.com/xocialize/mlx-fastframes-swift", from: "0.1.0")
+let id = try await engine.register(FastFramesPackage.registration, configuration: FastFramesConfiguration())
+let clip = try await engine.run(T2VRequest(prompt: "a corgi surfing at sunset", numFrames: 81, seed: 0), package: id)
+```
+
+The engine downloads all four weight sources on first use. Hosts that must not load non-commercial weights should
+register with `licenseEnforcement: .blocking`, which refuses this package.
 
 ## Not yet done
 
