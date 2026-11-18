@@ -92,13 +92,16 @@ public final class FastFramesPipeline {
 
     /// Autoregressive rollout over `frames` latent frames (≤ 21). Causal: the first N frames of a full run equal an
     /// N-frame run with the same noise.
+    /// `onFrame(frame)` runs after each latent frame is complete (cancellation / progress seam); a throw ends the
+    /// rollout.
     public func rollout(
         promptEmbeds: MLXArray, noise: NoiseSource, frames: Int = FF.numFrames,
-        log: ((String) -> Void)? = nil
-    ) -> RolloutResult {
+        log: ((String) -> Void)? = nil, onFrame: ((Int) throws -> Void)? = nil
+    ) rethrows -> RolloutResult {
         precondition(frames >= 1 && frames <= FF.numFrames)
         let text = dit.textCache(promptEmbeds)
-        let kv = FrameKVCache(frames: FF.numFrames, dtype: dit.dtype)
+        // Sized to the clip: attention only ever reads the filled prefix, so a short clip needs no 21-frame cache.
+        let kv = FrameKVCache(frames: frames, dtype: dit.dtype)
         eval(text.arrays + kv.arrays)
         let refE = refiner.embedTimestep(FF.refineTimestep)
         var latents: [MLXArray] = []
@@ -142,6 +145,7 @@ public final class FastFramesPipeline {
             timings.append(timing)
             log?(String(format: "frame %2d: denoise %.3f s, context %.3f s", frame, timing.denoiseSeconds,
                         timing.contextSeconds))
+            try onFrame?(frame)
         }
         return RolloutResult(
             latents: stacked(latents, axis: 1), hidden: concatenated(hidden, axis: 1),

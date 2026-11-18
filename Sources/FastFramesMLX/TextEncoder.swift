@@ -14,13 +14,15 @@ public final class FastFramesTextEncoder {
 
     /// - wanDirectory: a converted Wan checkpoint dir holding `t5_encoder.safetensors` and `config.json`
     /// - tokenizerDirectory: a local `google/umt5-xxl` snapshot (`tokenizer.json`, `tokenizer_config.json`)
-    public init(wanDirectory: URL, tokenizerDirectory: URL) async throws {
+    /// - dtype: `.bfloat16` (default) is upstream's own encoder dtype (`pipeline.py`: `TextEncoder(...).to(bfloat16)`)
+    ///   and half the memory of wan-core's fp32 upcast (~11 GB vs ~23 GB); `.float32` is mlx-video's convention.
+    public init(wanDirectory: URL, tokenizerDirectory: URL, dtype: DType = .bfloat16) async throws {
         let config = try WanConfig.load(from: wanDirectory.appendingPathComponent("config.json"))
         let model = UMT5EncoderModel.fromConfig(config)
         let weights = try WeightLoader.loadVerifiedSafetensors(
             url: wanDirectory.appendingPathComponent("t5_encoder.safetensors"),
             expectedKeys: BerniniWeightKeys.t5Keys(layers: config.t5NumLayers)
-        ).mapValues { $0.asType(.float32) }
+        ).mapValues { $0.asType(dtype) }
         WeightLoader.materialize(weights)
         try model.update(parameters: ModuleParameters.unflattened(weights), verify: [.noUnusedKeys])
         self.encoder = model

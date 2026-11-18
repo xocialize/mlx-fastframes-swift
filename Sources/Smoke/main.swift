@@ -7,12 +7,19 @@
 //             timing.json and the uint8 pixels.
 //   t5        wan-core umT5 prompt encoding vs the spike's upstream (CPU bf16) prompt embedding.
 //   generate  prompt → umT5 (evicted) → rollout → decode → MP4, with seeded MLX noise.
+//   engine    FastFramesPackage through the REAL MLXServeEngine (register → run; the engine constructs and loads the
+//             package, C13): --addons <dir> --wan-dir <t5 dir> --tokenizer <dir> --dit <file> --prompt … [--frames N]
+//             [--seed S] [--warmup] [--out dir]. Reports the phys floor after load and the lifetime peak during the
+//             run — the basis of the manifest's split footprint. One measured run per process.
 //
 // Weights: --dit (Causal Forcing++ framewise-2step generator_ema as safetensors), --refiner, --decoder.
 
 import FastFramesMLX
 import Foundation
 import MLX
+import MLXFastFrames
+import MLXServeCore
+import MLXToolKit
 
 setvbuf(stdout, nil, _IONBF, 0)
 let args = Args(CommandLine.arguments)
@@ -159,11 +166,12 @@ case "rollout":
 
 case "t5":
     let t = now()
+    let t5Dtype: DType = args.str("t5-dtype") == "f32" ? .float32 : .bfloat16
     let enc = try await FastFramesTextEncoder(
-        wanDirectory: args.url("wan-dir"), tokenizerDirectory: args.url("tokenizer"))
+        wanDirectory: args.url("wan-dir"), tokenizerDirectory: args.url("tokenizer"), dtype: t5Dtype)
     let emb = enc.encode(args.req("prompt"))
     eval(emb)
-    print(String(format: "umT5 load + encode %.2f s, MLX peak %@", now() - t, gb(Memory.peakMemory)))
+    print(String(format: "umT5 (%@) load + encode %.2f s, MLX peak %@, footprint peak %@", "\(t5Dtype)", now() - t, gb(Memory.peakMemory), gb(peakFootprint())))
     let ref = try loadArrays(url: args.url("inputs"))["prompt_embeds"]!
     let nz = (ref.abs().sum(axis: -1) .> 0).sum().item(Int.self)
     let gotNz = (emb[0].abs().sum(axis: -1) .> 0).sum().item(Int.self)
@@ -200,8 +208,44 @@ case "generate":
     try writeMP4(pixels, to: dir.appendingPathComponent("generate.mp4"))
     print("wrote \(dir.path)/generate.mp4")
 
+case "engine":
+    let cfg = FastFramesConfiguration(
+        ditFile: args.url("dit"), addonsDirectory: args.url("addons"),
+        textEncoderDirectory: args.url("wan-dir"), tokenizerDirectory: args.url("tokenizer"))
+    let engine = MLXServeEngine()
+    var t = now()
+    let id = try await engine.register(FastFramesPackage.registration, configuration: cfg)
+    print(String(format: "registered in %.3f s; licence advisories: %@", now() - t,
+                 "\(await engine.licenseAdvisories.map(\.summary))"))
+    let frames = args.int("frames", 81)
+    let request = T2VRequest(prompt: args.req("prompt"), numFrames: frames,
+                             seed: UInt64(args.int("seed", 0)))
+    if args.str("warmup") != nil {
+        t = now()
+        _ = try await engine.run(T2VRequest(prompt: "warm-up", numFrames: 5, seed: 1), package: id)
+        print(String(format: "warm-up (load + 5-frame run) %.2f s", now() - t))
+    }
+    Memory.clearCache()
+    let floor = currentFootprint()
+    t = now()
+    let resp = try await engine.run(request, package: id)
+    let runS = now() - t
+    let peak = peakFootprint()
+    guard let video = (resp as? T2VResponse)?.video else { fail("bad response") }
+    print(String(format: "engine: %d frames in %.2f s (load %@); phys floor %@, lifetime peak %@ "
+                 + "(activation ≈ %@); MLX peak %@; %d bytes mp4, %.2f s at %.0f fps",
+                 frames, runS, args.str("warmup") == nil ? "included" : "excluded", gb(floor), gb(peak),
+                 gb(peak - floor), gb(Memory.peakMemory), video.data.count, video.durationSeconds ?? 0,
+                 video.frameRate ?? 0))
+    if let out = args.str("out") {
+        let dir = URL(fileURLWithPath: out)
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        try video.data.write(to: dir.appendingPathComponent("engine.mp4"))
+        print("wrote \(dir.path)/engine.mp4")
+    }
+
 default:
-    print("usage: ff-smoke lanes|rollout|t5|generate [--options]  (see the header of main.swift)")
+    print("usage: ff-smoke lanes|rollout|t5|generate|engine [--options]  (see the header of main.swift)")
 }
 
 if !failures.isEmpty {

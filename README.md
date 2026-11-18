@@ -4,8 +4,10 @@ Apple **FastFrames-S** (arXiv 2611.23226, `apple/ml-fastframes`) on MLX in Swift
 text-to-video model: a frame-causal Wan2.1-1.3B DiT, a KV refinement network, and a causal ConvNeXt pixel decoder that
 writes RGB directly. Output is 81 frames at 832×480 and 16 fps.
 
-**Status: V2 (Swift core with parity gates), 2026-11-18.** There's no engine package yet; V3 adds that. The porting
-evaluation and the V0 Python-MLX spike are in `mlxengine-video/WIP/fastframes-eval/`.
+**Status: V3 (MLXEngine `textToVideo` package), 2026-11-18.** The core passed V2's parity gates; the package passes
+the offline conformance gates and runs through the real `MLXServeEngine`. **Not published.** The converted DiT has no
+Hub repo yet, so a fresh machine can't materialize it (see Open decisions). The porting evaluation and the V0
+Python-MLX spike are in `mlxengine-video/WIP/fastframes-eval/`.
 
 ## Licence channel — read first
 
@@ -25,7 +27,9 @@ Apple Machine Learning Research Model is licensed under the Apple Machine Learni
   - `PixelDecoder`: the depthwise 3×3×3 conv is written as 27 shifted multiply-adds, with no MLX conv kernel.
   - `FastFramesPipeline.rollout`
   - `FastFramesTextEncoder`: wan-core's umT5 with upstream's zero padding.
-- `ff-smoke`: the gates and runs (`lanes`, `rollout`, `t5`, `generate`); see the header of `Sources/Smoke/main.swift`.
+- `MLXFastFrames`: the MLXEngine package (`FastFramesPackage`, `FastFramesConfiguration`).
+- `ff-smoke`: the gates and runs (`lanes`, `rollout`, `t5`, `generate`, `engine`); see the header of
+  `Sources/Smoke/main.swift`.
 - `Tools/export_gates.py`: converts the V0 spike's numpy artefacts into the safetensors the gates read.
 - `Tools/pymlx_rollout_fp32.py`: the fp32 Python-MLX rollout oracle, with a `--perturb` sensitivity probe.
 
@@ -74,10 +78,67 @@ Logs and sheets are in `receipts/`.
 - The process footprint peak of 35 GB in `generate` comes from that phase. V3 should load the encoder in bf16 or run it
   in its own phase.
 
+## V3: the engine package
+
+**Surface.** One `textToVideo` surface, `fastframes-s-t2v`, on mlx-engine-swift 0.81.0 (contract 1.66).
+- `numFrames` can be 1–81 (default 81). Latent frames = ⌈(n + 3) / 4⌉, so shorter clips are proportionally faster
+  and the KV cache is sized to the clip.
+- `fps` sets playback (default 16, the model's native rate). `seed` sets the MLX noise (random if unset).
+- Refused legibly with `unsupportedRequestFeature`:
+  - other sizes;
+  - `steps` other than 2, `guidanceScale` other than 1, any `negativePrompt` (the schedule is distilled, with no
+    CFG);
+  - image, audio, keyframe and adapter conditioning, and `includeAudio`.
+- Cancellation and `RunProgress(.denoise)` happen after every latent frame.
+
+**Licence declaration.**
+- Weights: `apache2` (the DiT) plus `LicenseRef-Apple-AMLR` (Apple's add-ons).
+- Port code: `LicenseRef-Apple-Sample-Code`.
+- Each non-standard licence carries an informational `LicenseNotice` with its terms link, and the AMLR notice
+  includes the required attribution sentence verbatim.
+- Behaviour by host:
+  - A `.blocking` permissive-only host refuses the package (tested).
+  - The default advisory host registers it and records the AMLR advisory.
+- The engine has no named constant for either licence yet; an ask to `mlx-engine` covers that and the
+  eval-acknowledged list.
+
+**Weights.** Four sources. Apple's files come from Apple's repo, never a mirror (AB-D-0259).
+
+| Role | Repo | Status |
+|---|---|---|
+| dit | `mlx-community/Causal-Forcing-PP-framewise-2step-bf16` | **unpublished**; set `ditFile` until it exists |
+| addons | `apple/FastFrames-S` (`fastframes-s/*.safetensors`) | live |
+| text-encoder | `mlx-community/Bernini-R-1.3B-bf16` (`t5_encoder.safetensors`, `config.json`) | live |
+| tokenizer | `google/umt5-xxl` | live |
+
+**umT5 runs in bf16** (`pipeline.py:148` does the same).
+- Gate: cosine 0.99978 vs upstream, against 0.99984 for wan-core's fp32 upcast.
+- Peak: 11.9 GB instead of 23.6 GB.
+- Process footprint: 12.2 GB instead of 35.2 GB (`receipts/t5_dtypes.log`).
+
+**Measured through MLXServeEngine** (`receipts/engine_*.log`, `receipts/sheet_engine_car_seed7.png`)
+
+| | Result |
+|---|---|
+| 81 frames, warm: umT5 + rollout + decode + MP4 | **12.93 s** |
+| 33 frames, cold, including prewarm (15.1 GB in 1.7 s) and load | 8.26 s |
+| Phys floor after load | 6.86 GB |
+| Lifetime peak | **16.08 GB** (the prompt phase: resident set plus umT5, evicted before denoising) |
+| Declared footprint | resident 4.0 GB + activation 14.7 GB |
+
+Offline gates (`swift test`, 17 tests): MAT, the licence posture, FIT, CAN-1 and CAN-3, request planning, the load
+refusal, and the Codable form without host paths.
+
+## Open decisions (operator)
+
+- **Publish the converted DiT** as `mlx-community/Causal-Forcing-PP-framewise-2step-bf16`.
+  - It is Apache-2.0 and not an AMLR file, so AB-D-0259's no-mirror rule doesn't cover it.
+  - Without it the package needs a local `ditFile`.
+- **Push this repo** (private) to GitHub.
+
 ## Not yet done
 
 - V2b: quantized tiers with a perceptual gate. The refiner and decoder were trained against a bf16 DiT.
-- V3: an MLXEngine `textToVideo` package, flagged non-permissive.
 - V5: a Gaea plugin.
 - Rolling cache past 81 frames.
 - FF-L as a second variant.

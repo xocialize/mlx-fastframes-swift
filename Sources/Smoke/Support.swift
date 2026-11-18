@@ -1,5 +1,3 @@
-import AVFoundation
-import CoreVideo
 import Darwin
 import Foundation
 import MLX
@@ -64,6 +62,18 @@ func psnr(_ ref: MLXArray, _ got: MLXArray) -> [Double] {
     }
 }
 
+/// Current `phys_footprint` (bytes).
+func currentFootprint() -> Int {
+    var info = task_vm_info_data_t()
+    var count = mach_msg_type_number_t(MemoryLayout<task_vm_info_data_t>.size / MemoryLayout<natural_t>.size)
+    let kr = withUnsafeMutablePointer(to: &info) {
+        $0.withMemoryRebound(to: integer_t.self, capacity: Int(count)) {
+            task_info(mach_task_self_, task_flavor_t(TASK_VM_INFO), $0, &count)
+        }
+    }
+    return kr == KERN_SUCCESS ? Int(info.phys_footprint) : -1
+}
+
 /// Peak `phys_footprint` of this process so far (bytes) — the real working-set peak.
 func peakFootprint() -> Int {
     var info = task_vm_info_data_t()
@@ -80,47 +90,3 @@ func gb(_ b: Int) -> String { String(format: "%.2f GB", Double(b) / 1e9) }
 
 func now() -> Double { Double(DispatchTime.now().uptimeNanoseconds) / 1e9 }
 
-/// H.264 MP4 from uint8 `[N, H, W, 3]` RGB frames.
-func writeMP4(_ frames: MLXArray, to url: URL, fps: Int32 = 16) throws {
-    try? FileManager.default.removeItem(at: url)
-    let (n, h, w) = (frames.dim(0), frames.dim(1), frames.dim(2))
-    let writer = try AVAssetWriter(outputURL: url, fileType: .mp4)
-    let input = AVAssetWriterInput(mediaType: .video, outputSettings: [
-        AVVideoCodecKey: AVVideoCodecType.h264, AVVideoWidthKey: w, AVVideoHeightKey: h,
-        AVVideoCompressionPropertiesKey: [AVVideoAverageBitRateKey: 8_000_000],
-    ])
-    input.expectsMediaDataInRealTime = false
-    let adaptor = AVAssetWriterInputPixelBufferAdaptor(assetWriterInput: input, sourcePixelBufferAttributes: [
-        kCVPixelBufferPixelFormatTypeKey as String: kCVPixelFormatType_32BGRA,
-        kCVPixelBufferWidthKey as String: w, kCVPixelBufferHeightKey as String: h,
-    ])
-    writer.add(input)
-    guard writer.startWriting() else { throw writer.error ?? CocoaError(.fileWriteUnknown) }
-    writer.startSession(atSourceTime: .zero)
-    let rgb = frames.asArray(UInt8.self)
-    for f in 0..<n {
-        while !input.isReadyForMoreMediaData { usleep(1000) }
-        var pb: CVPixelBuffer?
-        CVPixelBufferPoolCreatePixelBuffer(nil, adaptor.pixelBufferPool!, &pb)
-        guard let buf = pb else { throw CocoaError(.fileWriteUnknown) }
-        CVPixelBufferLockBaseAddress(buf, [])
-        let base = CVPixelBufferGetBaseAddress(buf)!.assumingMemoryBound(to: UInt8.self)
-        let stride = CVPixelBufferGetBytesPerRow(buf)
-        rgb.withUnsafeBufferPointer { src in
-            for y in 0..<h {
-                for x in 0..<w {
-                    let s = ((f * h + y) * w + x) * 3
-                    let d = y * stride + x * 4
-                    base[d] = src[s + 2]; base[d + 1] = src[s + 1]; base[d + 2] = src[s]; base[d + 3] = 255
-                }
-            }
-        }
-        CVPixelBufferUnlockBaseAddress(buf, [])
-        adaptor.append(buf, withPresentationTime: CMTime(value: CMTimeValue(f), timescale: fps))
-    }
-    input.markAsFinished()
-    let done = DispatchSemaphore(value: 0)
-    writer.finishWriting { done.signal() }
-    done.wait()
-    if writer.status != .completed { throw writer.error ?? CocoaError(.fileWriteUnknown) }
-}

@@ -1,0 +1,4 @@
+umT5 (bfloat16) load + encode 1.21 s, MLX peak 11.92 GB, footprint peak 12.22 GB
+PASS  umT5 vs upstream CPU bf16  tokens 11/11  rel 0.0212  cos 0.999778
+umT5 (float32) load + encode 1.14 s, MLX peak 23.58 GB, footprint peak 35.17 GB
+PASS  umT5 vs upstream CPU bf16  tokens 11/11  rel 0.0176  cos 0.999844

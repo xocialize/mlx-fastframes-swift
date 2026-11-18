@@ -7,6 +7,7 @@ import PackageDescription
 // channel only per AB-D-0259; never a shipping app).
 //   • FastFramesMLX — engine-agnostic core: the frame-causal DiT with a preallocated KV cache, the KV refiner, the
 //     pixel decoder, the FlowMatch rollout, and umT5 prompt encoding through wan-core
+//   • MLXFastFrames — the MLXEngine `textToVideo` ModelPackage (research-only licence declared; see README)
 //   • ff-smoke — V2 parity gates against upstream's fp32 component outputs and the Python-MLX V0 rollout, the timed
 //     full rollout, and an MP4 writer
 let package = Package(
@@ -16,11 +17,15 @@ let package = Package(
     ],
     products: [
         .library(name: "FastFramesMLX", targets: ["FastFramesMLX"]),
+        .library(name: "MLXFastFrames", targets: ["MLXFastFrames"]),
         .executable(name: "ff-smoke", targets: ["FastFramesSmoke"]),
     ],
     dependencies: [
-        // Ceiling matches wan-core (its floor 0.32.3 avoids the NAX split-K bf16 GEMM miscompile, AB-R-0778).
-        .package(url: "https://github.com/ml-explore/mlx-swift.git", "0.32.3"..<"0.33.0"),
+        // The fleet's mlx-swift fork: 0.32.4 = upstream 0.32.3 + the multi-output-op leak fix (#501), the floor
+        // mlx-engine-swift ≥ 0.74.1 requires (AB-A-0249). Ceiling = wan-core's (< 0.33.0). Same package identity as
+        // ml-explore's URL, and a root declaration wins, so wan-core's range resolves against the fork.
+        .package(url: "https://github.com/xocialize/mlx-swift", "0.32.4"..<"0.33.0"),
+        .package(url: "https://github.com/xocialize/mlx-engine-swift", from: "0.81.0"),
         .package(url: "https://github.com/xocialize/wan-core-mlx-swift.git", from: "0.6.0"),
         .package(url: "https://github.com/huggingface/swift-transformers", from: "1.1.6"),
     ],
@@ -37,10 +42,22 @@ let package = Package(
             ],
             swiftSettings: [.swiftLanguageMode(.v5)]
         ),
+        .target(
+            name: "MLXFastFrames",
+            dependencies: [
+                "FastFramesMLX",
+                .product(name: "MLXToolKit", package: "mlx-engine-swift"),
+                .product(name: "MLX", package: "mlx-swift"),
+            ],
+            swiftSettings: [.swiftLanguageMode(.v5)]
+        ),
         .executableTarget(
             name: "FastFramesSmoke",
             dependencies: [
                 "FastFramesMLX",
+                "MLXFastFrames",
+                .product(name: "MLXToolKit", package: "mlx-engine-swift"),
+                .product(name: "MLXServeCore", package: "mlx-engine-swift"),
                 .product(name: "MLX", package: "mlx-swift"),
             ],
             path: "Sources/Smoke",
@@ -51,6 +68,16 @@ let package = Package(
             dependencies: [
                 "FastFramesMLX",
                 .product(name: "MLX", package: "mlx-swift"),
+            ]
+        ),
+        .testTarget(
+            name: "MLXFastFramesTests",
+            dependencies: [
+                "MLXFastFrames",
+                "FastFramesMLX",
+                .product(name: "MLXToolKit", package: "mlx-engine-swift"),
+                .product(name: "MLXServeCore", package: "mlx-engine-swift"),
+                .product(name: "MLXServeConformance", package: "mlx-engine-swift"),
             ]
         ),
     ]
