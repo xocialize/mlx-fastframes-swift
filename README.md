@@ -4,11 +4,13 @@ Apple **FastFrames-S** (arXiv 2611.23226, `apple/ml-fastframes`) on MLX in Swift
 text-to-video model: a frame-causal Wan2.1-1.3B DiT, a KV refinement network, and a causal ConvNeXt pixel decoder that
 writes RGB directly. Output is 81 frames at 832×480 and 16 fps.
 
-**Status: V3 (MLXEngine `textToVideo` package), 2026-11-18.** The core passed V2's parity gates; the package passes
-the offline conformance gates and runs through the real `MLXServeEngine`. The converted DiT is published as
-[`mlx-community/Causal-Forcing-PP-framewise-2step-bf16`](https://huggingface.co/mlx-community/Causal-Forcing-PP-framewise-2step-bf16),
-so every weight source materializes on a fresh machine. The porting evaluation and the V0
-Python-MLX spike are in `mlxengine-video/WIP/fastframes-eval/`.
+**Status: PROD (promoted 2026-11-19).** V2 parity gates and V3's MLXEngine `textToVideo` package are done. The
+package passes the offline conformance gates and runs through the real `MLXServeEngine`. The converted DiT is published
+as [`mlx-community/Causal-Forcing-PP-framewise-2step-bf16`](https://huggingface.co/mlx-community/Causal-Forcing-PP-framewise-2step-bf16),
+so every weight source materializes on a fresh machine. It runs in [Gaea](https://github.com/xocialize-code/gaea) as the
+named-only, opt-in research plugin
+[`gaea-plugin-fastframes`](https://github.com/xocialize-code/gaea-plugin-fastframes). The porting evaluation and the
+V0 Python-MLX spike are in `mlxengine-video/WIP/fastframes-eval/`.
 
 ## Licence channel — read first
 
@@ -151,6 +153,7 @@ register with `licenseEnforcement: .blocking`, which refuses this package.
 ## Not yet done
 
 - V2b: quantized tiers with a perceptual gate. The refiner and decoder were trained against a bf16 DiT.
-- V5: a Gaea plugin.
+- `writeMP4` isn't byte-repeatable: VideoToolbox's H.264 encoder can choose different frame types for the same frames
+  run to run (the decoded frames then differ by about 50 dB in the affected GOPs). Compare decoded frames, not bytes.
 - Rolling cache past 81 frames.
 - FF-L as a second variant.
