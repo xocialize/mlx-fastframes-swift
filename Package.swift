@@ -22,10 +22,11 @@ let package = Package(
     ],
     dependencies: [
         // The fleet's mlx-swift fork: 0.32.4 = upstream 0.32.3 + the multi-output-op leak fix (#501), the floor
-        // mlx-engine-swift ≥ 0.74.1 requires (AB-A-0249). Ceiling = wan-core's (< 0.33.0). Same package identity as
-        // ml-explore's URL, and a root declaration wins, so wan-core's range resolves against the fork.
-        .package(url: "https://github.com/xocialize/mlx-swift", "0.32.4"..<"0.33.0"),
-        .package(url: "https://github.com/xocialize/mlx-engine-swift", from: "0.81.0"),
+        // mlx-engine-swift ≥ 0.74.1 requires (AB-A-0249); 0.33.1 = upstream 0.33.0 with the head-dim-split SDPA
+        // routes disabled (AB-D-0264). Ceiling = wan-core's (< 0.34.0). Same package identity as ml-explore's URL,
+        // and a root declaration wins, so wan-core's range resolves against the fork.
+        .package(url: "https://github.com/xocialize/mlx-swift", "0.32.4" ..< "0.34.0"),
+        .package(url: "https://github.com/xocialize/mlx-engine-swift", from: "0.82.1"),
         .package(url: "https://github.com/xocialize/wan-core-mlx-swift.git", from: "0.6.0"),
         .package(url: "https://github.com/huggingface/swift-transformers", from: "1.1.6"),
     ],

@@ -1,0 +1,47 @@
+loaded weights (float32) in 0.18 s
+frame  0: denoise 1.653 s, context 0.402 s
+frame  1: denoise 0.901 s, context 0.106 s
+frame  2: denoise 1.192 s, context 0.128 s
+frame  3: denoise 1.364 s, context 0.121 s
+frame  4: denoise 1.221 s, context 0.100 s
+frame  5: denoise 1.466 s, context 0.136 s
+frame  6: denoise 1.667 s, context 0.101 s
+frame  7: denoise 1.453 s, context 0.102 s
+frame  8: denoise 1.577 s, context 0.101 s
+frame  9: denoise 1.647 s, context 0.099 s
+frame 10: denoise 1.792 s, context 0.100 s
+frame 11: denoise 1.844 s, context 0.099 s
+frame 12: denoise 1.999 s, context 0.100 s
+frame 13: denoise 2.011 s, context 0.101 s
+frame 14: denoise 2.168 s, context 0.102 s
+frame 15: denoise 2.253 s, context 0.099 s
+frame 16: denoise 2.372 s, context 0.101 s
+frame 17: denoise 2.414 s, context 0.099 s
+frame 18: denoise 2.584 s, context 0.103 s
+frame 19: denoise 2.642 s, context 0.117 s
+frame 20: denoise 2.787 s, context 0.116 s
+run 0: rollout 41.76 s, decode 0.51 s, MLX peak 22.43 GB, footprint peak 27.52 GB
+— vs Python-MLX V0 (fp32, same noise; gate on frames 0..<14) —
+  latent frame  0  rel 0.0000  cos 1.000000
+  latent frame  1  rel 0.0000  cos 1.000000
+  latent frame  2  rel 0.0001  cos 1.000000
+  latent frame  3  rel 0.0001  cos 1.000000
+  latent frame  4  rel 0.0002  cos 1.000000
+  latent frame  5  rel 0.0002  cos 1.000000
+  latent frame  6  rel 0.0003  cos 1.000000
+  latent frame  7  rel 0.0004  cos 1.000000
+  latent frame  8  rel 0.0008  cos 1.000000
+  latent frame  9  rel 0.0009  cos 1.000000
+  latent frame 10  rel 0.0008  cos 1.000000
+  latent frame 11  rel 0.0013  cos 0.999999
+  latent frame 12  rel 0.0013  cos 0.999999
+  latent frame 13  rel 0.0018  cos 0.999998
+  latent frame 14  rel 0.0105  cos 0.999944  (ungated)
+  latent frame 15  rel 0.0145  cos 0.999895  (ungated)
+  latent frame 16  rel 0.0154  cos 0.999881  (ungated)
+  latent frame 17  rel 0.0193  cos 0.999814  (ungated)
+  latent frame 18  rel 0.0213  cos 0.999773  (ungated)
+  latent frame 19  rel 0.0298  cos 0.999556  (ungated)
+  latent frame 20  rel 0.0606  cos 0.998168  (ungated)
+  pixels (81 frames)  PSNR min 33.11 dB  mean 60.90 dB
+PASS  rollout vs Python-MLX (fp32 logic)  max rel 1.79e-03 over frames 0..<14

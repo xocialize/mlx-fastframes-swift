@@ -31,12 +31,47 @@ Apple Machine Learning Research Model is licensed under the Apple Machine Learni
   - `FastFramesPipeline.rollout`
   - `FastFramesTextEncoder`: wan-core's umT5 with upstream's zero padding.
 - `MLXFastFrames`: the MLXEngine package (`FastFramesPackage`, `FastFramesConfiguration`).
-- `ff-smoke`: the gates and runs (`lanes`, `rollout`, `t5`, `generate`, `engine`); see the header of
+- `ff-smoke`: the gates and runs (`lanes`, `rollout`, `onestep`, `t5`, `generate`, `engine`); see the header of
   `Sources/Smoke/main.swift`.
 - `Tools/export_gates.py`: converts the V0 spike's numpy artefacts into the safetensors the gates read.
 - `Tools/pymlx_rollout_fp32.py`: the fp32 Python-MLX rollout oracle, with a `--perturb` sensitivity probe.
+- `Tools/dump_oracle_kv.py`: the same oracle rollout plus its KV cache, the reference for `onestep`.
 
 The weights keep upstream's torch key names. Convert the DiT from the `.pt` with the spike's `ref_torch.py convert`.
+
+## Gates on mlx-swift 0.33.1 (2026-11-19, M5 Max 128 GB, macOS 27.3, release build)
+
+The package takes the fleet fork `xocialize/mlx-swift` "0.32.4" ..< "0.34.0" (0.33.1 = upstream 0.33.0 with the
+head-dim-split SDPA routes disabled, AB-D-0264) and mlx-engine-swift ≥ 0.82.1. On 0.33.1 the V2 rollout gates moved
+while every per-step number held, so the gate set was redesigned (operator-approved, AB-R-1009). Logs:
+`receipts/*_mlxswift0331.log`.
+
+| Gate | Threshold | 0.33.1 result |
+|---|---|---|
+| fp32 lanes vs upstream (all 9) | rel ≤ 1e-4 | 1.08–2.84e-6 (unchanged from V2 within ±1e-7) |
+| **one-step**, teacher-forced x0 vs the Python-MLX oracle, frames 0–13 (new) | rel ≤ 5e-5 per frame | worst 9.12e-6 (frame 0); frames 1–13: 1.23–1.87e-6 |
+| fp32 rollout vs the Python-MLX fp32 oracle (now built on mlx 0.32.4), frames 0–13 | max rel ≤ **3e-3** (was 1e-3) | 1.79e-3 |
+| bf16 rollout vs Python-MLX bf16, frames 0–2 | cos ≥ 0.997 | 0.998025 |
+| bf16 rollout vs upstream torch bf16, frames 0–2 | cos ≥ **0.9965** (was 0.997), PSNR ≥ 30 dB | 0.998869 / 0.997932 / 0.996941; PSNR min 31.26 dB |
+| umT5 vs upstream CPU bf16 | 11/11 tokens, cos ≥ 0.999 | 11/11, 0.999778 (identical on 0.32.4 with the same weights) |
+| offline (`swift test`) | — | 17/17 |
+
+**Why the thresholds moved.** The rollout is autoregressive and amplifies ulp-level backend differences. Teacher-forced
+from the oracle's own KV cache, every frame's x0 agrees to 1.2–2.3e-6 (frame 0, 4 steps + the clean pass: ≤ 1.1e-5) on
+mlx-swift 0.32.4 and 0.33.1 alike, the same spread Python mlx 0.31.2 and 0.32.4 show against each other. Over the
+rollout, those two Python oracles drift 7e-4 apart by frame 13 on their own, and Swift lands at 6.0e-4 (0.32.4) to
+2.3e-3 (0.33.1) depending on which backend it pairs with. So `onestep` holds the tight per-step bound, the fp32 rollout
+limit sits above the measured oracle-vs-oracle spread, and the bf16-vs-torch floor (a torch oracle can't follow MLX
+kernel changes) drops by 5e-4.
+
+**Gate files** live beside the others in `/Volumes/DEV_ARCHIVE/fastframes-s-measure/gates/` (too big for git):
+- `pymlx_fp32_corgi_mlx0324.safetensors` (105 MB, sha256 `e4929c4b…`): `MLX_ENABLE_TF32=0 python -I
+  Tools/pymlx_rollout_fp32.py --spike-dir <spike> --dit cf-pp/framewise-2step-ema.safetensors --refiner
+  fastframes-s/kv_refiner.safetensors --decoder fastframes-s/pixel_decoder.safetensors --inputs out/inputs_corgi.npz
+  --frames 21`, Python 3.12.16, mlx 0.32.4. The same command on mlx 0.31.2 reproduces the V2 reference
+  `pymlx_fp32_corgi.safetensors` byte for byte.
+- `onestep_kv_corgi_mlx0324.safetensors` (8.1 GB, sha256 `8152b86d…`): `Tools/dump_oracle_kv.py`, same arguments
+  with `--frames 14`, same environment.
 
 ## V2 results (M5 Max 128 GB, macOS 27.3, mlx-swift 0.32.3, release build)
 

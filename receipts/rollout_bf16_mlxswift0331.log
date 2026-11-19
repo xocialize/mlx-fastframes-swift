@@ -1,0 +1,53 @@
+loaded weights (bfloat16) in 0.15 s
+frame  0: denoise 0.519 s, context 0.123 s
+frame  1: denoise 0.271 s, context 0.067 s
+frame  2: denoise 0.289 s, context 0.037 s
+frame  3: denoise 0.313 s, context 0.037 s
+frame  4: denoise 0.327 s, context 0.039 s
+frame  5: denoise 0.345 s, context 0.038 s
+frame  6: denoise 0.365 s, context 0.037 s
+frame  7: denoise 0.391 s, context 0.039 s
+frame  8: denoise 0.403 s, context 0.039 s
+frame  9: denoise 0.421 s, context 0.038 s
+frame 10: denoise 0.442 s, context 0.037 s
+frame 11: denoise 0.471 s, context 0.037 s
+frame 12: denoise 0.479 s, context 0.039 s
+frame 13: denoise 0.502 s, context 0.040 s
+frame 14: denoise 0.527 s, context 0.039 s
+frame 15: denoise 0.555 s, context 0.040 s
+frame 16: denoise 0.570 s, context 0.040 s
+frame 17: denoise 0.590 s, context 0.040 s
+frame 18: denoise 0.609 s, context 0.039 s
+frame 19: denoise 0.641 s, context 0.039 s
+frame 20: denoise 0.667 s, context 0.040 s
+run 0: rollout 10.73 s, decode 0.35 s, MLX peak 12.15 GB, footprint peak 19.76 GB
+— vs Python-MLX V0 (bf16, same noise; gate on frames 0..<3) —
+  latent frame  0  rel 0.0396  cos 0.999217
+  latent frame  1  rel 0.0525  cos 0.998622
+  latent frame  2  rel 0.0628  cos 0.998025
+  latent frame  3  rel 0.1061  cos 0.994357  (ungated)
+  latent frame  4  rel 0.1520  cos 0.988442  (ungated)
+  latent frame  5  rel 0.2108  cos 0.977707  (ungated)
+  latent frame  6  rel 0.2893  cos 0.957793  (ungated)
+  latent frame  7  rel 0.3569  cos 0.935571  (ungated)
+  latent frame  8  rel 0.3862  cos 0.924859  (ungated)
+  latent frame  9  rel 0.4133  cos 0.914462  (ungated)
+  latent frame 10  rel 0.4794  cos 0.888008  (ungated)
+  latent frame 11  rel 0.5642  cos 0.847967  (ungated)
+  latent frame 12  rel 0.5973  cos 0.829048  (ungated)
+  latent frame 13  rel 0.6245  cos 0.813699  (ungated)
+  latent frame 14  rel 0.6448  cos 0.799552  (ungated)
+  latent frame 15  rel 0.6585  cos 0.786400  (ungated)
+  latent frame 16  rel 0.6915  cos 0.763118  (ungated)
+  latent frame 17  rel 0.6985  cos 0.757307  (ungated)
+  latent frame 18  rel 0.6867  cos 0.763361  (ungated)
+  latent frame 19  rel 0.6926  cos 0.758084  (ungated)
+  latent frame 20  rel 0.6712  cos 0.772206  (ungated)
+  pixels (81 frames)  PSNR min 13.70 dB  mean 19.44 dB
+PASS  rollout vs Python-MLX (bf16 band)  min cos 0.998025 over frames 0..<3
+— vs upstream torch CPU bf16 (first 3 frames) —
+  latent frame  0  rel 0.0475  cos 0.998869
+  latent frame  1  rel 0.0643  cos 0.997932
+  latent frame  2  rel 0.0782  cos 0.996941
+  pixels (9 frames)  PSNR min 31.26 dB  mean 33.49 dB
+PASS  rollout vs upstream  min cos 0.99694

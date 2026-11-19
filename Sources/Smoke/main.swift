@@ -5,6 +5,9 @@
 //   rollout   bf16 rollout from the spike's shared noise table, compared per frame with the Python-MLX V0 rollout
 //             (--pymlx; --dtype f32 with a pymlx_rollout_fp32.py oracle) and upstream's first 3 frames (--ref); times every frame; optional --out writes an MP4,
 //             timing.json and the uint8 pixels.
+//   onestep   teacher-forced one-frame steps (fp32; run with MLX_ENABLE_TF32=0): for each latent frame k < 14 the KV
+//             cache is the Python-MLX oracle's own (--oracle, from Tools/dump_oracle_kv.py), Swift denoises frame k with
+//             the table noise and writes its context; x0_k is gated against the oracle's at rel ≤ 5e-5 per frame.
 //   t5        wan-core umT5 prompt encoding vs the spike's upstream (CPU bf16) prompt embedding.
 //   generate  prompt → umT5 (evicted) → rollout → decode → MP4, with seeded MLX noise.
 //   engine    FastFramesPackage through the REAL MLXServeEngine (register → run; the engine constructs and loads the
@@ -112,8 +115,15 @@ case "rollout":
         // The gate covers the trajectory's stable window only. From latent frame 14 on, this prompt/seed amplifies
         // any perturbation: the Python-MLX fp32 oracle against itself with the prompt scaled by (1 + 1e-6) agrees to
         // ≤ 4e-4 through frame 13, then drifts to 7–9 % by frames 19–20. Late frames are judged perceptually.
-        //   fp32: max latent rel over frames 0..<stable (default 14) ≤ 1e-3 — the logic gate
+        //   fp32: max latent rel over frames 0..<stable (default 14) ≤ 3e-3 — the logic gate (reference: the mlx 0.32.4
+        //         oracle, gates/pymlx_fp32_corgi_mlx0324.safetensors)
         //   bf16: min latent cos over frames 0..<stable (default 3) ≥ 0.997 — the backend-rounding band V0 measured
+        // Why 3e-3, not the V2 1e-3 (AB-R-1009, 2026-11-19): the rollout drift is amplification, not error. Teacher-forced
+        // from the oracle's own KV cache (`onestep`), every frame's x0 is within 1.2–2.3e-6 rel (frame 0: ≤ 1.1e-5) on
+        // mlx-swift 0.32.4 and 0.33.1 alike, the same as Python mlx 0.31.2 vs 0.32.4 against each other — yet two Python
+        // oracles (0.31.2 vs 0.32.4) drift 7e-4 apart by frame 13 on their own, and Swift lands at 6.0e-4–2.3e-3 by
+        // frame 13 depending on which ulp-level backend it pairs with. The tight check is `onestep`; this one catches
+        // trajectory-level logic errors.
         let fp32 = dtype == .float32
         let stable = min(frames, args.int("stable-frames", fp32 ? 14 : 3))
         print("— vs Python-MLX V0 (\(fp32 ? "fp32" : "bf16"), same noise; gate on frames 0..<\(stable)) —")
@@ -129,7 +139,7 @@ case "rollout":
         let mean = ps.reduce(0, +) / Double(ps.count)
         print(String(format: "  pixels (%d frames)  PSNR min %.2f dB  mean %.2f dB", n, ps.min()!, mean))
         if fp32 {
-            gate("rollout vs Python-MLX (fp32 logic)", maxRel <= 1e-3,
+            gate("rollout vs Python-MLX (fp32 logic)", maxRel <= 3e-3,
                  String(format: "max rel %.2e over frames 0..<%d", maxRel, stable))
         } else {
             gate("rollout vs Python-MLX (bf16 band)", minCos >= 0.997,
@@ -151,7 +161,10 @@ case "rollout":
         print(String(format: "  pixels (%d frames)  PSNR min %.2f dB  mean %.2f dB", n, ps.min()!,
                      ps.reduce(0, +) / Double(ps.count)))
         // V0 Python-MLX vs upstream: cos ≥ 0.9975, PSNR min 32.3 dB over the same span.
-        gate("rollout vs upstream", minCos >= 0.997 && ps.min()! >= 30, String(format: "min cos %.5f", minCos))
+        // Floor 0.9965, was 0.997 (AB-R-1009, 2026-11-19): the torch oracle can't follow MLX kernel changes, and frame 2
+        // already sits in the amplifying regime — mlx-swift 0.32.4 scored 0.99723, 0.33.1 scores 0.99694 with per-step
+        // error unchanged (teacher-forced x0 rel 1.2–2.3e-6 per frame; Python oracle-vs-oracle rollout spread 7e-4).
+        gate("rollout vs upstream", minCos >= 0.9965 && ps.min()! >= 30, String(format: "min cos %.5f", minCos))
     }
     if let out = args.str("out") {
         let dir = URL(fileURLWithPath: out)
@@ -163,6 +176,72 @@ case "rollout":
         try writeMP4(pixels, to: dir.appendingPathComponent("rollout.mp4"))
         print("wrote \(dir.path)/{rollout.mp4,timing_swift.json,swift_rollout.safetensors}")
     }
+
+case "onestep":
+    // Teacher-forced one-frame steps: the per-step error the rollout gate can't see past its own amplification.
+    // For each frame k the KV cache is the oracle's (slots 0..<k final, as the oracle's rollout left them); Swift runs
+    // frame k's denoise steps and context write; x0_k must match the oracle's at rel ≤ 5e-5. Measured 2026-11-19
+    // (AB-R-1009): worst 1.08e-5 (frame 0, 4 steps + the clean pass), frames 1–13 at 1.2–2.3e-6 on mlx-swift 0.32.4 and
+    // 0.33.1; Python mlx 0.31.2 vs 0.32.4 oracles score the same against each other (frame 0 6.2e-6).
+    let tol = args.double("tol") ?? 5e-5
+    let p = try loadPipeline(.float32)
+    let inputs = try loadArrays(url: args.url("inputs"))
+    let O = try loadArrays(url: args.url("oracle"))
+    let nF = min(args.int("frames", 14), O["latents"]!.dim(0))
+    let noise = TableNoise(arrays: inputs, dtype: .float32)
+    let text = p.dit.textCache(inputs["prompt_embeds"]![.newAxis])
+    let kv = FrameKVCache(frames: nF, dtype: .float32)
+    let refE = p.refiner.embedTimestep(FF.refineTimestep)
+    eval(text.arrays)
+    func relMax(_ ref: MLXArray, _ got: MLXArray) -> (Float, Float) {
+        let d = got.asType(.float32) - ref.asType(.float32)
+        let rel = (d.square().sum().sqrt() / ref.asType(.float32).square().sum().sqrt()).item(Float.self)
+        return (rel, abs(d).max().item(Float.self))
+    }
+    func slot(_ arrs: [MLXArray], _ f: Int) -> MLXArray {
+        let (s, e) = (f * FF.frameTokens, (f + 1) * FF.frameTokens)
+        return stacked(arrs.map { $0[0, 0..., s..<e, 0...].transposed(1, 0, 2).reshaped(FF.frameTokens, FF.dim) })
+    }
+    let oK = (0..<FF.layers).map { O["k\($0)"]![0..., 0..., ..<(nF * FF.frameTokens), 0...] }
+    let oV = (0..<FF.layers).map { O["v\($0)"]![0..., 0..., ..<(nF * FF.frameTokens), 0...] }
+    print("frame  x0 rel      x0 maxAbs   | slot K rel  slot V rel")
+    var worst: Float = 0
+    for frame in 0..<nF {
+        kv.k = oK.map { $0 + 0 }  // fresh objects: slice assignment mutates an MLXArray in place
+        kv.v = oV.map { $0 + 0 }
+        let schedule = frame == 0 ? FF.firstTimesteps : FF.timesteps
+        var x = noise.initial(frame: frame)
+        var x0 = x
+        for (step, t) in schedule.enumerated() {
+            let (flow, _) = p.dit.forwardFrame(x, p.dit.timeConditioning(t), text, kv, frame: frame)
+            x0 = p.scheduler.flowToX0(flow, x, t)
+            if step + 1 < schedule.count {
+                x = p.scheduler.addNoise(x0, noise.transition(frame: frame, step: step), schedule[step + 1])
+            }
+            eval([x0] + kv.arrays)
+        }
+        if frame == 0 {
+            _ = p.dit.forwardFrame(x0, p.dit.timeConditioning(0.0), text, kv, frame: 0)
+        } else {
+            let phi = p.refiner.computePhi(p.dit.patchEmbed(x0), refE)
+            let (k, v) = p.refiner.repairAll(slot(kv.k, frame), slot(kv.v, frame), phi, refE)
+            let (s, e) = (frame * FF.frameTokens, (frame + 1) * FF.frameTokens)
+            for i in 0..<FF.layers {
+                kv.k[i][0..., 0..., s..<e, 0...] =
+                    k[i].reshaped(FF.frameTokens, FF.heads, FF.headDim).transposed(1, 0, 2)[.newAxis]
+                kv.v[i][0..., 0..., s..<e, 0...] =
+                    v[i].reshaped(FF.frameTokens, FF.heads, FF.headDim).transposed(1, 0, 2)[.newAxis]
+            }
+        }
+        eval(kv.arrays)
+        let (xr, xm) = relMax(O["latents"]![frame][.newAxis], x0)
+        let (kr, _) = relMax(slot(oK, frame), slot(kv.k, frame))
+        let (vr, _) = relMax(slot(oV, frame), slot(kv.v, frame))
+        worst = max(worst, xr)
+        print(String(format: "%5d  %.3e  %.3e   | %.3e   %.3e", frame, xr, xm, kr, vr))
+    }
+    gate("one-step x0 vs Python-MLX (teacher-forced)", worst <= Float(tol),
+         String(format: "worst rel %.2e over frames 0..<%d (tol %.0e)", worst, nF, tol))
 
 case "t5":
     let t = now()
@@ -253,7 +332,7 @@ case "engine":
     }
 
 default:
-    print("usage: ff-smoke lanes|rollout|t5|generate|engine [--options]  (see the header of main.swift)")
+    print("usage: ff-smoke lanes|rollout|onestep|t5|generate|engine [--options]  (see the header of main.swift)")
 }
 
 if !failures.isEmpty {
